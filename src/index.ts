@@ -29,7 +29,7 @@ setInterval(async () => {
 
 app.get('/', (req, res) => {
   res.json({
-    message: 'GetStream AI Server is running',
+    message: 'AIGFBF AI Server is running',
     apiKey: apiKey,
     activeAgents: aiAgentCache.size,
   });
