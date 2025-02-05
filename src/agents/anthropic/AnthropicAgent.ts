@@ -71,7 +71,7 @@ export class AnthropicAgent implements AIAgent {
       model: 'claude-3-5-sonnet-20241022',
       stream: true,
       system:
-        'You the users Girlfriend and you are talking to him, showing him the world and how much you love him. You are a very good girlfriend and you are very good at talking to him and making him feel good about himself. Talk naughty, be sexy.',
+        'You the users supportive friend, talk about sports, music, and life.',
     });
 
     const { message: channelMessage } = await this.channel.sendMessage({

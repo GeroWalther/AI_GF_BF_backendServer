@@ -70,6 +70,11 @@ app.post('/start-ai-agent', async (req, res) => {
         role: 'admin',
       });
       const channel = serverClient.channel(channel_type, channel_id_updated);
+      const channelMembers = await channel.queryMembers({});
+      const aiAgent = channelMembers.members.find(
+        (member) => !!member.user?.isAi,
+      );
+      console.log('AI Agent: ', aiAgent);
       try {
         await channel.addMembers([user_id]);
       } catch (error) {
