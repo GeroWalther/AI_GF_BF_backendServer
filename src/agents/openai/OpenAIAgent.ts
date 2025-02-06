@@ -14,6 +14,7 @@ export class OpenAIAgent implements AIAgent {
   constructor(
     readonly chatClient: StreamChat,
     readonly channel: Channel,
+    readonly agentInfo: any,
   ) {}
 
   dispose = async () => {

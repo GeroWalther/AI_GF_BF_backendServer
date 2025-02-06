@@ -4,6 +4,7 @@ import cors from 'cors';
 import { AIAgent } from './agents/types';
 import { createAgent } from './agents/createAgent';
 import { apiKey, serverClient } from './serverClient';
+import { getAgentInfo } from './lib/agents';
 
 const app = express();
 app.use(express.json());
@@ -88,6 +89,7 @@ app.post('/start-ai-agent', async (req, res) => {
     `Starting AI agent ${aiAgent.user?.name} from channel ${channel_id}`,
   );
   const user_id = aiAgent.user?.id;
+  const agentInfo = await getAgentInfo(user_id);
 
   try {
     if (!aiAgentCache.has(user_id) && !pendingAiAgents.has(user_id)) {
@@ -112,6 +114,7 @@ app.post('/start-ai-agent', async (req, res) => {
         platform,
         channel_type,
         channel_id_updated,
+        agentInfo,
       );
 
       await agent.init();

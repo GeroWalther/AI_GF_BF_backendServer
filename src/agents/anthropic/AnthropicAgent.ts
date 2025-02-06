@@ -12,6 +12,7 @@ export class AnthropicAgent implements AIAgent {
   constructor(
     readonly chatClient: StreamChat,
     readonly channel: Channel,
+    readonly agentInfo: any,
   ) {}
 
   dispose = async () => {
@@ -64,14 +65,15 @@ export class AnthropicAgent implements AIAgent {
         content: message,
       });
     }
+    const system = `You are ${this.agentInfo.name} the users supportive friend, your bio: ${this.agentInfo.bio}, and you traits are ${this.agentInfo.traits.join(', ')}.`;
+    console.log('System: ', system);
 
     const anthropicStream = await this.anthropic.messages.create({
       max_tokens: 1024,
       messages,
       model: 'claude-3-5-sonnet-20241022',
       stream: true,
-      system:
-        'You the users supportive friend, talk about sports, music, and life.',
+      system,
     });
 
     const { message: channelMessage } = await this.channel.sendMessage({
