@@ -27,6 +27,22 @@ setInterval(async () => {
   }
 }, 5000);
 
+const getAiAgentfromChannel = async (
+  channel_type: string,
+  channel_id: string,
+) => {
+  const channel = serverClient.channel(channel_type, channel_id);
+  const channelMembers = await channel.queryMembers({});
+  const aiAgent = channelMembers.members.find((member) => !!member.user?.isAi);
+  //console.log('AI Agent: ', aiAgent);
+
+  if (!aiAgent?.user?.id) {
+    return null;
+  }
+
+  return aiAgent;
+};
+
 app.get('/', (req, res) => {
   res.json({
     message: 'AIGFBF AI Server is running',
@@ -59,27 +75,35 @@ app.post('/start-ai-agent', async (req, res) => {
     }
   }
 
-  const user_id = `ai-bot-${channel_id_updated.replace(/!/g, '')}`;
+  //const user_id = `ai-bot-${channel_id_updated.replace(/!/g, '')}`;
+  const channel = serverClient.channel(channel_type, channel_id_updated);
+
+  const aiAgent = await getAiAgentfromChannel(channel_type, channel_id_updated);
+
+  if (!aiAgent?.user?.id) {
+    res.status(400).json({ error: 'AI Agent not found in channel.' });
+    return;
+  }
+  console.log(
+    `Starting AI agent ${aiAgent.user?.name} from channel ${channel_id}`,
+  );
+  const user_id = aiAgent.user?.id;
+
   try {
     if (!aiAgentCache.has(user_id) && !pendingAiAgents.has(user_id)) {
       pendingAiAgents.add(user_id);
 
-      await serverClient.upsertUser({
-        id: user_id,
-        name: 'AI Bot',
-        role: 'admin',
-      });
-      const channel = serverClient.channel(channel_type, channel_id_updated);
-      const channelMembers = await channel.queryMembers({});
-      const aiAgent = channelMembers.members.find(
-        (member) => !!member.user?.isAi,
-      );
-      console.log('AI Agent: ', aiAgent);
-      try {
-        await channel.addMembers([user_id]);
-      } catch (error) {
-        console.error('Failed to add members to channel', error);
-      }
+      // await serverClient.upsertUser({
+      //   id: user_id,
+      //   name: 'AI Bot',
+      //   role: 'admin',
+      // });
+
+      // try {
+      //   await channel.addMembers([user_id]);
+      // } catch (error) {
+      //   console.error('Failed to add members to channel', error);
+      // }
 
       await channel.watch();
 
@@ -116,9 +140,21 @@ app.post('/start-ai-agent', async (req, res) => {
  * Handle the request to stop the AI Agent
  */
 app.post('/stop-ai-agent', async (req, res) => {
-  const { channel_id } = req.body;
+  const { channel_id, channel_type = 'messaging' } = req.body;
+
+  const aiAgentMember = await getAiAgentfromChannel(channel_type, channel_id);
+
+  if (!aiAgentMember?.user?.id) {
+    res.status(400).json({ error: 'AI Agent not found in channel.' });
+    return;
+  }
+  console.log(
+    `Stopping AI agent ${aiAgentMember.user?.name} from channel ${channel_id}`,
+  );
+  const userId = aiAgentMember.user?.id;
+
   try {
-    const userId = `ai-bot-${channel_id.replace(/!/g, '')}`;
+    // const userId = `ai-bot-${channel_id.replace(/!/g, '')}`;
     const aiAgent = aiAgentCache.get(userId);
     if (aiAgent) {
       await disposeAiAgent(aiAgent, userId);
@@ -137,11 +173,11 @@ app.post('/stop-ai-agent', async (req, res) => {
 async function disposeAiAgent(aiAgent: AIAgent, userId: string) {
   await aiAgent.dispose();
 
-  const channel = serverClient.channel(
-    aiAgent.channel.type,
-    aiAgent.channel.id,
-  );
-  await channel.removeMembers([userId]);
+  // const channel = serverClient.channel(
+  //   aiAgent.channel.type,
+  //   aiAgent.channel.id,
+  // );
+  // await channel.removeMembers([userId]);
 }
 
 // Start the Express server
