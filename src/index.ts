@@ -5,6 +5,7 @@ import { AIAgent } from './agents/types';
 import { createAgent } from './agents/createAgent';
 import { apiKey, serverClient } from './serverClient';
 import { getAgentInfo } from './lib/agents';
+import Anthropic from '@anthropic-ai/sdk';
 
 const app = express();
 app.use(express.json());
@@ -50,6 +51,67 @@ app.get('/', (req, res) => {
     apiKey: apiKey,
     activeAgents: aiAgentCache.size,
   });
+});
+
+/**
+ * Handle the request to send the initial message to the AI Agent
+ */
+app.post('/new-ai-message', async (req, res) => {
+  const { channel_id, channel_type = 'messaging' } = req.body;
+  // Simple validation
+  if (!channel_id) {
+    res.status(400).json({ error: 'Missing required fields' });
+    return;
+  }
+  const channel = serverClient.channel(channel_type, channel_id);
+
+  const aiAgent = await getAiAgentfromChannel(channel_type, channel_id);
+
+  if (!aiAgent?.user?.id) {
+    res.status(400).json({ error: 'AI Agent not found in channel.' });
+    return;
+  }
+  console.log(
+    `Starting AI agent ${aiAgent.user?.name} from channel ${channel_id}`,
+  );
+  const user_id = aiAgent.user?.id;
+  const agentInfo = await getAgentInfo(user_id);
+  const system = `You are ${agentInfo.name} the users supportive friend, your bio: ${agentInfo.bio}, and you traits are ${agentInfo.traits.join(', ')}.`;
+  console.log('System: ', system);
+  try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const response = await anthropic.messages.create({
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content:
+            'Write a short message to the user. Be interesting, engaging and spicy. Only output the message, nothing else.',
+        },
+      ],
+      model: 'claude-3-5-sonnet-20240620',
+      //  messages: [{role: 'user', content: message}],
+      stream: false,
+      system: system,
+    });
+    if (response.content[0].type === 'text' && response.content[0].text) {
+      const { message: channelMessage } = await channel.sendMessage({
+        text: response.content[0].text,
+        ai_generated: true,
+        user_id: user_id,
+      });
+      console.log('Channel Message: ', channelMessage);
+      res.json({ message: 'AI Agent started', data: channelMessage });
+    } else {
+      res.status(500).json({ error: 'Failed to start AI Agent' });
+    }
+  } catch (error) {
+    const errorMessage = (error as Error).message;
+    console.error('Failed to start AI Agent', errorMessage);
+    res
+      .status(500)
+      .json({ error: 'Failed to start AI Agent', reason: errorMessage });
+  }
 });
 
 /**
